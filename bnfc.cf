@@ -1,0 +1,41 @@
+
+PDefs. Program ::= [Def] ;
+terminator Def "" ;
+DFun. Def ::= Type Id "(" [Arg] ")" "{" [Stm] "}" ;
+separator Arg "," ;
+terminator Stm "" ;
+ADecl. Arg ::= Type Id ;
+SExp. Stm ::= Exp ";" ;
+SDecl. Stm ::= Type Id ";" ;
+SDecls. Stm ::= Type Id "," [Id] ";" ;
+SInit. Stm ::= Type Id "=" Exp ";" ;
+SWhile. Stm ::= "while" "(" Exp ")" Stm ;
+SIfElse. Stm ::= "if" "(" Exp ")" Stm "else" Stm ;
+
+
+EInt. Exp15 ::= Integer ;
+
+EId. Exp15 ::= Id ;
+EApp. Exp15 ::= Id "(" [Exp] ")" ;
+EMul. Exp1 ::= Exp1 "*" Exp2 ;
+EDiv. Exp12 ::= Exp12 "/" Exp13 ;
+EPlus. Exp11 ::= Exp11 "sudo apt install bison +" Exp12 ;
+EMinus. Exp11 ::= Exp11 "-" Exp12 ;
+ELt. Exp9 ::= Exp9 "<" Exp10 ;
+EGt. Exp9 ::= Exp9 ">" Exp10 ;
+ELtEq. Exp9 ::= Exp9 "<=" Exp10 ;
+EGtWq. Exp9 ::= Exp9 ">=" Exp10 ;
+EEq. Exp8 ::= Exp8 "==" Exp9 ;
+ENEq. Exp8 ::= Exp8 "!=" Exp9 ;
+EAnd. Exp4 ::= Exp4 "&&" Exp5 ;
+EOr. Exp3 ::= Exp3 "||" Exp4 ;
+EAss. Exp2 ::= Exp3 "=" Exp2 ;
+
+coercions Exp 15 ;
+separator Exp "," ;
+separator Id "," ;
+
+Tint. Type ::= "int" ;
+
+
+token Id (letter (letter | digit | '_')) ;
