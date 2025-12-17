@@ -1,0 +1,41 @@
+# Rust build artifacts
+target/
+**/*.rs.bk
+Cargo.lock
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Test/benchmark data (large files)
+benchmark/data/*.log
+benchmark/results/
+
+# Claude Code
+.claude/
+
+# MCP config (user-specific)
+.mcp.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+venv/
+.env
+
+# Editor backup files
+*.bak
+*.orig
+
+# Log files generated during development
+*.log
+!benchmark/data/.gitkeep
