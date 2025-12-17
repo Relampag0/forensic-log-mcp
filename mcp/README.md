@@ -4,7 +4,7 @@ A high-performance Model Context Protocol (MCP) server for log analysis, powered
 
 ## Features
 
-- **Fast Aggregations**: 10-19x faster than awk/jq on GROUP BY operations
+- **Fast Aggregations**: 5-50x faster than awk on GROUP BY operations
 - **Streaming**: Handles files larger than RAM via lazy evaluation
 - **Multi-Format**: Apache, Nginx, Syslog, JSON Lines, CSV/TSV
 - **Auto-Detection**: Automatically detects log format from content
@@ -17,23 +17,23 @@ MCP excels at **aggregation queries** (GROUP BY, COUNT, SUM, AVG) on large files
 
 | Operation | awk | MCP | Speedup |
 |-----------|-----|-----|---------|
-| Group by IP | 0.36s | 0.048s | **7.5x faster** |
-| Group by method | 1.26s | 0.048s | **26x faster** |
-| Group by user_agent | 2.39s | 0.047s | **51x faster** |
-| Group by referer | 1.16s | 0.047s | **24x faster** |
-| Sum size | 0.37s | 0.048s | **7.7x faster** |
+| Group by IP | 0.26s | 0.048s | **5x faster** |
+| Group by method | 1.31s | 0.047s | **28x faster** |
+| Group by user_agent | 2.40s | 0.049s | **50x faster** |
+| Group by referer | 1.14s | 0.046s | **25x faster** |
+| Sum size | 0.37s | 0.047s | **8x faster** |
 
-*(Tested on 1M line Apache log, 125MB)*
+*(Tested on 1M line Apache log, 125MB, 10 runs, mean reported)*
 
 ### Honest Assessment
 
 **MCP is faster for:**
-- All GROUP BY aggregations (7-51x faster than awk)
-- JSON log analysis (10-15x faster than jq)
+- All GROUP BY aggregations (5-50x faster than awk)
+- JSON log analysis (11x faster than jq)
 - Complex multi-column queries
 
 **grep is faster for:**
-- Simple text counting (`grep -c` is 6x faster due to MCP startup overhead)
+- Simple text counting (`grep -c` is ~300x faster due to zero parsing overhead)
 
 ### How It's So Fast
 

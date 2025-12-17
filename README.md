@@ -9,7 +9,7 @@ Give Claude the ability to analyze massive log files (gigabytes of data) that wo
 
 ## Features
 
-- **Fast Aggregations**: 10-19x faster than awk/jq on GROUP BY operations
+- **Fast Aggregations**: 5-50x faster than awk on GROUP BY operations
 - **SIMD-Accelerated**: Custom parsers using `memchr` for structured queries
 - **Multi-Format**: Apache, Nginx, Syslog, JSON Lines, CSV/TSV
 - **Streaming**: Handles files larger than RAM via lazy evaluation
@@ -21,13 +21,17 @@ MCP excels at **aggregation queries** on large files (1M lines, 125MB Apache log
 
 | Operation | awk | MCP | Speedup |
 |-----------|-----|-----|---------|
-| Group by IP | 0.36s | 0.048s | **7.5x faster** |
-| Group by method | 1.26s | 0.048s | **26x faster** |
-| Group by user_agent | 2.39s | 0.047s | **51x faster** |
-| Group by referer | 1.16s | 0.047s | **24x faster** |
-| Sum size | 0.37s | 0.048s | **7.7x faster** |
+| Group by IP | 0.26s | 0.048s | **5x faster** |
+| Group by method | 1.31s | 0.047s | **28x faster** |
+| Group by user_agent | 2.40s | 0.049s | **50x faster** |
+| Group by referer | 1.14s | 0.046s | **25x faster** |
+| Sum size | 0.37s | 0.047s | **8x faster** |
+| JSON group by (vs jq) | 1.65s | 0.16s | **11x faster** |
 
-**Note**: For simple text counting (`grep -c`), grep is ~6x faster due to MCP's startup overhead.
+**Honest Assessment**:
+- MCP dominates GROUP BY/aggregation queries (5-50x faster)
+- grep is ~300x faster for simple line counting (`grep -c`)
+- MCP has ~50ms startup overhead, negligible on large files
 
 See [benchmark/BENCHMARK.md](benchmark/BENCHMARK.md) for detailed methodology and honest comparison.
 

@@ -4,178 +4,172 @@
 
 - **Date**: 2025-12-17
 - **OS**: Linux 6.17.3-2-cachyos
-- **CPU**: AMD Ryzen 7 8840U (8 cores)
+- **CPU**: AMD Ryzen 7 8840U (16 threads)
 - **RAM**: 14 GB
-- **Methodology**: 5 runs per test, 2 warmup runs, mean reported
+- **CPU Governor**: powersave
+- **Methodology**: 10 runs per test, 3 warmup runs, mean reported
 
 ## Tool Versions
 
 | Tool | Version |
 |------|---------|
 | forensic-log-mcp | 0.3.0 |
-| grep | GNU 3.11 |
+| rustc | 1.90.0 |
+| grep | GNU 3.12 |
 | ripgrep | 14.1.1 |
-| awk | GNU 5.3.1 |
-| jq | 1.7.1 |
+| awk | GNU 5.3.2 |
+| jq | 1.8.1 |
 
 ---
 
-## Summary: When to Use Each Tool
+## Executive Summary
 
 ### MCP Excels At
 
 | Operation | vs Tool | Speedup | Notes |
 |-----------|---------|---------|-------|
-| Group by IP | awk | **7.5x faster** | SIMD-accelerated |
-| Group by method | awk | **26x faster** | SIMD-accelerated |
-| Group by user_agent | awk | **51x faster** | SIMD-accelerated |
-| Group by referer | awk | **24x faster** | SIMD-accelerated |
-| JSON aggregations | jq | **10-15x faster** | Polars native parser |
+| Group by IP | awk | **5.4x faster** | SIMD-accelerated |
+| Group by method | awk | **28x faster** | SIMD-accelerated |
+| Group by user_agent | awk | **50x faster** | SIMD-accelerated |
+| Group by referer | awk | **25x faster** | SIMD-accelerated |
+| JSON aggregations | jq | **11x faster** | Polars native parser |
 | Sum/Avg size | awk | **7.7x faster** | SIMD-accelerated |
 
 ### grep/awk Excel At
 
 | Operation | vs MCP | Notes |
 |-----------|--------|-------|
-| Simple text counting | **6x faster** | `grep -c` is highly optimized |
-| Complex multi-grep | **6x faster** | `grep | grep` pipelines |
+| Simple line counting | **~300x faster** | `grep -c` is highly optimized |
+| Tiny files (<10K lines) | **~2x faster** | MCP has ~50ms startup overhead |
 
-### Honest Assessment
+---
 
-**MCP dominates GROUP BY aggregations** (7-51x faster than awk).
+## MCP Protocol Overhead Analysis
 
-**grep is faster for simple text counting** - MCP has ~100ms startup overhead that makes simple `grep -c` operations faster.
+MCP has a fixed startup overhead from process spawn, MCP handshake, and Polars initialization:
 
-**Choose based on your query type:**
-- GROUP BY, COUNT BY, SUM, AVG → Use MCP
-- Simple line counting → Use grep
+| File Size | Lines | Time (s) | Overhead % |
+|-----------|-------|----------|------------|
+| Tiny | 10 | 0.049 | 100% (baseline) |
+| 10K | 10,000 | 0.058 | 84% |
+| 100K | 100,000 | 0.133 | 37% |
+| 1M | 1,000,000 | 0.900 | 5% |
+
+**Conclusion**: MCP's ~50ms fixed overhead is significant for tiny files but negligible (<5%) for files over 100K lines.
 
 ---
 
 ## Detailed Results
 
-### Apache Log Format
+### Apache Log Format (1M Lines, 125 MB)
 
-#### 5M Lines (620 MB)
+#### Aggregation Benchmarks
 
-| Operation | grep | ripgrep | awk | MCP | Winner |
-|-----------|------|---------|-----|-----|--------|
-| Count errors (>=400) | **0.002s** | 0.250s | 1.63s | 4.91s | grep |
-| Group by IP (top 50) | - | - | 1.18s | **0.089s** | **MCP 13x** |
-| Regex count | **0.002s** | 0.269s | - | 5.24s | grep |
+| Operation | awk (s) | MCP (s) | Speedup |
+|-----------|---------|---------|---------|
+| Group by IP | 0.261 | 0.048 | **5.4x** |
+| Group by method | 1.312 | 0.047 | **28x** |
+| Group by user_agent | 2.401 | 0.049 | **50x** |
+| Group by referer | 1.138 | 0.046 | **25x** |
+| Sum size | 0.367 | 0.047 | **7.7x** |
 
-#### 1M Lines (125 MB)
+##### Statistical Details (Group by IP)
 
-| Operation | grep | ripgrep | awk | MCP | Winner |
-|-----------|------|---------|-----|-----|--------|
-| Count errors | **0.002s** | 0.055s | 0.33s | 0.91s | grep |
-| Group by IP (top 50) | - | - | 0.24s | **0.042s** | **MCP 6x** |
-| Regex count | **0.002s** | 0.056s | - | 0.89s | grep |
+| Metric | awk | MCP |
+|--------|-----|-----|
+| Mean | 0.261s | 0.048s |
+| Median | 0.260s | 0.048s |
+| Std Dev | 0.005s | 0.002s |
+| CV% | 1.88% | 3.35% |
+| Outliers | 0 | 0 |
 
-### JSON Log Format
+#### Filter Benchmarks (Simple Line Counting)
 
-#### 5M Lines (907 MB)
+| Operation | grep | rg --mmap | MCP | Winner |
+|-----------|------|-----------|-----|--------|
+| Count 4xx/5xx errors | 0.003s | 0.060s | 0.900s | **grep** |
 
-| Operation | jq | grep | MCP | Winner |
-|-----------|-----|------|-----|--------|
-| Count errors | 14.2s | **0.002s** | 0.026s | grep* |
-| Group by service (top 50) | 7.92s | - | **0.54s** | **MCP 15x** |
+**Note**: For simple line counting, grep is unbeatable. MCP's value is in structured queries with GROUP BY.
 
-*grep only does text match, not proper JSON field filtering
+### JSON Log Format (1M Lines, 182 MB)
 
-#### 1M Lines (182 MB)
+| Operation | jq + sort | MCP | Speedup |
+|-----------|-----------|-----|---------|
+| Group by service | 1.65s | 0.155s | **11x** |
 
-| Operation | jq | MCP | Winner | Speedup |
-|-----------|-----|-----|--------|---------|
-| Count errors | 3.03s | 0.028s | MCP | **108x** |
-| Group by service | 1.50s | **0.15s** | **MCP** | **10x** |
+### Multi-File Glob (10 files x 10K lines)
 
-### Syslog Format
-
-#### 1M Lines (75 MB)
-
-| Operation | grep | awk | MCP | Winner |
-|-----------|------|-----|-----|--------|
-| Count errors | **0.002s** | - | 0.79s | grep |
-| Group by hostname | - | 0.75s | **0.040s** | **MCP 19x** |
+| Scenario | awk (cat + pipe) | MCP (glob) | Notes |
+|----------|------------------|------------|-------|
+| Group by IP | 0.027s | 0.033s | MCP overhead dominates small files |
 
 ---
 
 ## Key Findings
 
-### 1. MCP Has Startup Overhead
+### 1. MCP Dominates GROUP BY Operations
 
-MCP has ~100-150ms startup overhead from:
-- Process spawn
-- MCP protocol handshake
-- Polars initialization
+For aggregation queries on large files, MCP is 5-50x faster than awk:
 
-This overhead is:
-- **Significant** on small files or simple grep operations
-- **Negligible** on large files with complex queries
+- **Simple columns** (IP, method): 5-28x faster
+- **Complex columns** (user_agent, referer): 25-50x faster due to awk's sort/uniq overhead
+- **JSON logs**: 11x faster than jq
 
-### 2. GROUP BY is Where MCP Shines
+### 2. grep is Unbeatable for Simple Counting
 
-For aggregation operations, MCP's SIMD-accelerated parsers and Polars engine provide 10-20x speedup over awk/jq:
+grep -c is ~300x faster than MCP for simple line counting due to:
+- Zero parsing overhead
+- No startup cost
+- Kernel-level optimization
 
-| Format | Group By Operation | awk/jq | MCP | Speedup |
-|--------|-------------------|--------|-----|---------|
-| Apache 5M | Group by IP | 1.18s | 0.089s | **13x** |
-| JSON 5M | Group by service | 7.92s | 0.54s | **15x** |
-| Syslog 1M | Group by hostname | 0.75s | 0.040s | **19x** |
+### 3. MCP Overhead is Amortized on Large Files
 
-### 3. grep is Unbeatable for Simple Counting
-
-grep -c is highly optimized for line counting. MCP cannot compete for simple text matching:
-
-| Operation | grep | MCP | Winner |
-|-----------|------|-----|--------|
-| Count lines matching pattern | 0.002s | 0.79-4.9s | grep |
+The ~50ms fixed overhead:
+- **Dominates** on files < 10K lines
+- **Significant** on files ~100K lines (37%)
+- **Negligible** on files > 1M lines (<5%)
 
 ---
 
-## When to Use MCP
+## When to Use Each Tool
 
-**Use MCP when:**
-1. Running GROUP BY aggregations on large files
-2. Analyzing JSON logs (vs jq)
-3. Performing complex multi-step queries
-4. Working with files larger than RAM
-5. Needing structured JSON output
-
-**Use grep/awk when:**
-1. Simple text pattern matching
-2. Counting matching lines
-3. Working with small files
-4. Quick one-liner operations
+| Use Case | Best Tool | Why |
+|----------|-----------|-----|
+| "How many errors?" | grep -c | Minimal overhead |
+| "Top IPs by request count" | MCP | GROUP BY optimized |
+| "Average response size by path" | MCP | Aggregation + grouping |
+| "Find lines matching pattern" | grep/rg | Text search optimized |
+| "JSON log analysis" | MCP | 11x faster than jq |
+| "Time series analysis" | MCP | Built-in bucketing |
+| "Quick file search" | grep | No startup cost |
+| "Complex analytics" | MCP | Multiple operations in one query |
 
 ---
 
 ## Methodology Notes
 
-1. **Fair Comparison**: All tools return equivalent data
-   - Filter benchmarks count matching lines (not return rows)
-   - Group benchmarks return top 50 results
+### Fair Comparison Principles
 
-2. **Statistics**: Each test run 3 times after 1 warmup
-   - Results show mean ± standard deviation
-   - Min and max values tracked
+1. **Equal Output**: All tools return equivalent data (top 50 results, sorted)
+2. **Warm Cache**: 3 warmup runs before measurement
+3. **Multiple Runs**: 10 timed runs per benchmark
+4. **Statistical Reporting**: Mean, median, stddev, CV%, outlier detection
 
-3. **Synthetic Data**: Test logs generated with 5% error rate
-   - May not represent all production scenarios
-   - Real logs may have different characteristics
+### Limitations
 
-4. **Single Machine**: All tests on one system
-   - Results may vary on different hardware
-   - Cloud VMs may show different characteristics
+1. **Synthetic Data**: Test logs generated with 5% error rate
+2. **Single Machine**: Results may vary on different hardware
+3. **CPU Governor**: Tests run with `powersave` (not performance mode)
+4. **Memory**: Peak RSS measurement via /proc sampling (may underestimate)
 
----
+### Reproducibility
 
-## Limitations
+```bash
+# Run comprehensive benchmark
+cd benchmark
+./run_comprehensive_benchmark.sh
 
-1. **Not tested with real production logs** - Synthetic data only
-2. **Single machine** - No cross-platform verification
-3. **Limited formats** - Apache, JSON, Syslog only
-4. **No memory benchmarks** - RAM usage not measured
+# Results in results_comprehensive/COMPREHENSIVE_RESULTS.md
+```
 
 See [CRITICAL_REVIEW.md](CRITICAL_REVIEW.md) for detailed methodology critique.
