@@ -33,7 +33,7 @@ MCP excels at **aggregation queries** (GROUP BY, COUNT, SUM, AVG) on large files
 - Complex multi-column queries
 
 **grep is faster for:**
-- Simple text counting (`grep -c` is ~300x faster due to zero parsing overhead)
+- Simple text counting (`grep -c` is ~24x faster due to Python/MCP overhead)
 
 ### How It's So Fast
 

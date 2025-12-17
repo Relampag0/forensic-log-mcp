@@ -1,5 +1,4 @@
 pub mod apache;
-pub mod apache_fast;
 pub mod apache_simd;
 pub mod csv;
 pub mod json;

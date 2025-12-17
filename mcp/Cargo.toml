@@ -1,10 +1,10 @@
 [package]
 name = "forensic-log-mcp"
-version = "0.3.0"
+version = "0.3.1"
 edition = "2024"
 description = "High-performance MCP server for log analysis"
 license = "MIT"
-repository = "https://github.com/YOUR_USERNAME/forensic-log-mcp"
+repository = "https://github.com/TLinvest/forensic-log-mcp"
 keywords = ["mcp", "log-analysis", "polars", "simd"]
 categories = ["command-line-utilities", "development-tools"]
 

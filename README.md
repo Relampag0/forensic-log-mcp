@@ -30,8 +30,8 @@ MCP excels at **aggregation queries** on large files (1M lines, 125MB Apache log
 
 **Honest Assessment**:
 - MCP dominates GROUP BY/aggregation queries (5-50x faster)
-- grep is ~300x faster for simple line counting (`grep -c`)
-- MCP has ~50ms startup overhead, negligible on large files
+- grep is ~24x faster for simple line counting (`grep -c`)
+- MCP has ~57ms Python/MCP overhead, negligible on large files
 
 See [benchmark/BENCHMARK.md](benchmark/BENCHMARK.md) for detailed methodology and honest comparison.
 
@@ -41,7 +41,7 @@ See [benchmark/BENCHMARK.md](benchmark/BENCHMARK.md) for detailed methodology an
 
 ```bash
 # Clone the repository
-git clone https://github.com/YOUR_USERNAME/forensic-log-mcp.git
+git clone https://github.com/TLinvest/forensic-log-mcp.git
 cd forensic-log-mcp
 
 # Build the MCP server

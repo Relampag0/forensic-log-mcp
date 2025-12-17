@@ -14,15 +14,12 @@ Cargo.lock
 .DS_Store
 Thumbs.db
 
-# Test/benchmark data (large files)
+# Benchmark generated files
 benchmark/data/*.log
-benchmark/results/
+benchmark/results*/
 
-# Claude Code
+# Claude Code local settings
 .claude/
-
-# MCP config (user-specific)
-.mcp.json
 
 # Python
 __pycache__/
@@ -36,6 +33,6 @@ venv/
 *.bak
 *.orig
 
-# Log files generated during development
-*.log
-!benchmark/data/.gitkeep
+# Temporary files
+*.tmp
+*.temp

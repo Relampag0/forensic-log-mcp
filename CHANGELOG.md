@@ -5,6 +5,22 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.1] - 2025-12-17
+
+### Added
+- SIMD fast path for `user_agent` and `referer` columns
+- Grep-like fast counting mode (no parsing) for simple filter operations
+- Comprehensive benchmark suite with statistical analysis
+
+### Changed
+- Improved filter performance: 10x faster than previous version
+- Reduced grep gap from 300x to 24x for simple line counting
+- Repository cleanup and organization for public release
+
+### Documentation
+- Updated all performance claims with verified benchmarks
+- Honest comparison showing where grep is faster
+
 ## [0.3.0] - 2025-12-17
 
 ### Added
@@ -12,13 +28,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Numeric aggregations (sum, avg, min, max) via SIMD fast path
 - New `syslog_simd.rs` parser with SIMD text filtering and grouping
 - Time range filtering with timestamp parsing for Apache logs
-- LTO optimization for 51% smaller binary (26MB vs 53MB)
+- LTO optimization for 51% smaller binary
 
 ### Performance
-- Regex search: 3.6x faster than ripgrep on Apache logs
-- Sum/Avg aggregations: 19-21x faster than awk
-- Syslog text filtering: 4.5x faster than grep
-- Syslog group by: 35x faster than awk
+- Group by user_agent: 50x faster than awk
+- Group by referer: 25x faster than awk
+- Sum/Avg aggregations: 8x faster than awk
+- Syslog group by: 19x faster than awk
 
 ## [0.2.0] - 2025-12-17
 

@@ -461,6 +461,99 @@ impl GroupByColumn {
 }
 
 // ============================================================================
+// GREP-LIKE FAST COUNTING (no parsing, maximum speed)
+// ============================================================================
+
+/// Pure grep-like counting - NO parsing, just regex match + count
+/// This is the fastest possible path for simple line counting
+/// Uses SIMD via memchr for line splitting and regex crate's SIMD for matching
+pub fn count_matches(path: &Path, pattern: &str) -> Result<usize, ParseError> {
+    let file = File::open(path)?;
+    let mmap = unsafe { Mmap::map(&file)? };
+    let data = &mmap[..];
+
+    let regex = Regex::new(pattern)
+        .map_err(|e| ParseError::ParseFailed(format!("Invalid regex: {}", e)))?;
+
+    let chunk_size = 4 * 1024 * 1024; // 4MB chunks
+    let chunk_bounds = find_chunk_boundaries(data, chunk_size);
+
+    let count: usize = chunk_bounds
+        .par_windows(2)
+        .map(|window| {
+            let chunk = &data[window[0]..window[1]];
+            let mut local_count = 0;
+            let mut pos = 0;
+
+            while pos < chunk.len() {
+                let line_end = memchr(b'\n', &chunk[pos..])
+                    .map(|i| pos + i)
+                    .unwrap_or(chunk.len());
+                let line = &chunk[pos..line_end];
+
+                if regex.is_match(line) {
+                    local_count += 1;
+                }
+
+                pos = line_end + 1;
+            }
+            local_count
+        })
+        .sum();
+
+    Ok(count)
+}
+
+/// Count matches across multiple files (glob pattern support)
+pub fn count_matches_multi(paths: &[&Path], pattern: &str) -> Result<usize, ParseError> {
+    let regex = Regex::new(pattern)
+        .map_err(|e| ParseError::ParseFailed(format!("Invalid regex: {}", e)))?;
+
+    let count: usize = paths
+        .par_iter()
+        .map(|path| {
+            let file = match File::open(path) {
+                Ok(f) => f,
+                Err(_) => return 0,
+            };
+            let mmap = match unsafe { Mmap::map(&file) } {
+                Ok(m) => m,
+                Err(_) => return 0,
+            };
+            let data = &mmap[..];
+
+            let chunk_size = 4 * 1024 * 1024;
+            let chunk_bounds = find_chunk_boundaries(data, chunk_size);
+
+            chunk_bounds
+                .par_windows(2)
+                .map(|window| {
+                    let chunk = &data[window[0]..window[1]];
+                    let mut local_count = 0;
+                    let mut pos = 0;
+
+                    while pos < chunk.len() {
+                        let line_end = memchr(b'\n', &chunk[pos..])
+                            .map(|i| pos + i)
+                            .unwrap_or(chunk.len());
+                        let line = &chunk[pos..line_end];
+
+                        if regex.is_match(line) {
+                            local_count += 1;
+                        }
+
+                        pos = line_end + 1;
+                    }
+                    local_count
+                })
+                .sum::<usize>()
+        })
+        .sum();
+
+    Ok(count)
+}
+
+// ============================================================================
 // GENERALIZED FAST OPERATIONS
 // ============================================================================
 

@@ -13,7 +13,7 @@
 
 | Tool | Version |
 |------|---------|
-| forensic-log-mcp | 0.3.0 |
+| forensic-log-mcp | 0.3.1 |
 | rustc | 1.90.0 |
 | grep | GNU 3.12 |
 | ripgrep | 14.1.1 |
@@ -39,8 +39,8 @@
 
 | Operation | vs MCP | Notes |
 |-----------|--------|-------|
-| Simple line counting | **~300x faster** | `grep -c` is highly optimized |
-| Tiny files (<10K lines) | **~2x faster** | MCP has ~50ms startup overhead |
+| Simple line counting | **~24x faster** | `grep -c` is highly optimized C code |
+| Tiny files (<10K lines) | **~2x faster** | MCP has ~57ms Python/MCP overhead |
 
 ---
 
@@ -85,11 +85,13 @@ MCP has a fixed startup overhead from process spawn, MCP handshake, and Polars i
 
 #### Filter Benchmarks (Simple Line Counting)
 
-| Operation | grep | rg --mmap | MCP | Winner |
-|-----------|------|-----------|-----|--------|
-| Count 4xx/5xx errors | 0.003s | 0.060s | 0.900s | **grep** |
+| Operation | grep | MCP (grep-like) | Winner |
+|-----------|------|-----------------|--------|
+| Count 4xx/5xx errors | 0.004s | 0.086s | **grep (24x)** |
 
-**Note**: For simple line counting, grep is unbeatable. MCP's value is in structured queries with GROUP BY.
+**Note**: MCP now uses a grep-like fast path for simple counting (no parsing).
+The ~57ms Python/MCP overhead means grep is faster for simple operations.
+MCP's value is in structured queries with GROUP BY.
 
 ### JSON Log Format (1M Lines, 182 MB)
 
@@ -115,12 +117,14 @@ For aggregation queries on large files, MCP is 5-50x faster than awk:
 - **Complex columns** (user_agent, referer): 25-50x faster due to awk's sort/uniq overhead
 - **JSON logs**: 11x faster than jq
 
-### 2. grep is Unbeatable for Simple Counting
+### 2. grep is Faster for Simple Counting
 
-grep -c is ~300x faster than MCP for simple line counting due to:
-- Zero parsing overhead
-- No startup cost
-- Kernel-level optimization
+grep -c is ~24x faster than MCP for simple line counting due to:
+- No Python/MCP protocol overhead (~57ms)
+- Highly optimized C implementation
+- Direct syscall access
+
+However, MCP now uses a grep-like fast path (no parsing) that is **10x faster** than the previous implementation.
 
 ### 3. MCP Overhead is Amortized on Large Files
 
@@ -165,11 +169,6 @@ The ~50ms fixed overhead:
 ### Reproducibility
 
 ```bash
-# Run comprehensive benchmark
 cd benchmark
-./run_comprehensive_benchmark.sh
-
-# Results in results_comprehensive/COMPREHENSIVE_RESULTS.md
+./run_benchmark.sh
 ```
-
-See [CRITICAL_REVIEW.md](CRITICAL_REVIEW.md) for detailed methodology critique.

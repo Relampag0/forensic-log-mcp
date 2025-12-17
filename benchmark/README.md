@@ -1,114 +1,96 @@
 # Forensic Log MCP Benchmark Suite
 
-Benchmark suite to compare the forensic-log-mcp server against traditional log analysis tools.
+Benchmark suite comparing forensic-log-mcp against traditional log analysis tools.
 
-## Tools Compared
+## Quick Start
 
-| Tool | Description |
-|------|-------------|
-| **forensic-log-mcp** | Our Polars-powered MCP server |
-| **grep/ripgrep** | Pattern matching |
-| **awk** | Text processing |
-| **jq** | JSON processing |
-| **pandas** | Python DataFrame library |
+```bash
+# 1. Generate test data
+cd generate_logs
+cargo build --release
+./target/release/generate_logs -o ../data/apache_1M.log -l 1000000 -f apache
 
-## Benchmark Operations
+# 2. Build MCP server
+cd ../../mcp
+cargo build --release
 
-1. **Filter Errors** - Find all log entries with status >= 400 (or ERROR level)
-2. **Group Count** - Count entries grouped by IP/service/hostname
-3. **Pattern Search** - Search for regex patterns in log content
+# 3. Run benchmarks
+cd ../benchmark
+./run_benchmark.sh
+```
 
 ## Directory Structure
 
 ```
 benchmark/
-├── README.md
-├── run_benchmark.sh        # Main benchmark runner
-├── data/                   # Generated test data
-│   ├── apache_*.log
-│   ├── json_*.log
-│   └── syslog_*.log
-├── results/                # Benchmark results
-│   └── benchmark_report.md
-├── generate_logs/          # Rust log generator
+├── BENCHMARK.md          # Detailed benchmark results
+├── run_benchmark.sh      # Main benchmark runner
+├── data/                 # Test data (generated, gitignored)
+│   └── .gitkeep
+├── generate_logs/        # Rust log generator
 │   └── src/main.rs
-└── scripts/                # Helper scripts
-    ├── mcp_client.py       # MCP communication client
-    ├── mcp_filter_errors.sh
-    ├── mcp_group_count.sh
-    ├── mcp_search.sh
-    └── pandas_benchmark.py
+└── scripts/
+    ├── mcp_client.py     # MCP protocol client
+    └── stats.py          # Statistical analysis
 ```
 
-## Usage
+## Tools Compared
 
-### Generate Test Data Only
+| Tool | Description |
+|------|-------------|
+| **forensic-log-mcp** | SIMD-accelerated MCP server with Polars |
+| **grep/ripgrep** | Pattern matching |
+| **awk** | Text processing |
+| **jq** | JSON processing |
 
-```bash
-./run_benchmark.sh --generate-only
-```
+## Benchmark Configuration
 
-### Run Small Benchmark (100k lines)
-
-```bash
-./run_benchmark.sh --small
-```
-
-### Run Full Benchmark Suite
-
-```bash
-./run_benchmark.sh
-```
-
-This will:
-1. Generate test data (100k, 500k, 1M, 5M lines) in Apache, JSON, and Syslog formats
-2. Run each benchmark operation with all tools
-3. Generate a markdown report in `results/benchmark_report.md`
-
-## Requirements
-
-- **Required**: Rust toolchain (nightly for edition 2024), grep, awk
-- **Optional**: ripgrep (`rg`), jq, python3 + pandas, hyperfine
-
-Install optional tools:
-```bash
-# Arch/CachyOS
-sudo pacman -S ripgrep jq python-pandas hyperfine
-
-# Ubuntu/Debian
-sudo apt install ripgrep jq python3-pandas
-cargo install hyperfine
-```
+- **Runs per test**: 10
+- **Warmup runs**: 3
+- **Statistics**: Mean, median, stddev, outlier detection
 
 ## Log Generator
 
-The log generator creates realistic log data with configurable parameters:
+Generate realistic test data:
 
 ```bash
 cd generate_logs
-cargo +nightly build --release
+cargo build --release
 
-# Generate 1M Apache logs with 5% error rate
-./target/release/generate_logs -o test.log -l 1000000 -f apache -e 0.05
+# Apache logs (125MB per million lines)
+./target/release/generate_logs -o ../data/apache_1M.log -l 1000000 -f apache -e 0.05
 
-# Options:
-#   -o, --output      Output file path
-#   -l, --lines       Number of lines (default: 1000000)
-#   -f, --format      Log format: apache, json, syslog
-#   -e, --error_rate  Error rate 0.0-1.0 (default: 0.05)
+# JSON logs (180MB per million lines)
+./target/release/generate_logs -o ../data/json_1M.log -l 1000000 -f json -e 0.05
+
+# Syslog (75MB per million lines)
+./target/release/generate_logs -o ../data/syslog_1M.log -l 1000000 -f syslog -e 0.05
 ```
 
-## Expected Results
+Options:
+- `-o, --output` - Output file path
+- `-l, --lines` - Number of lines (default: 1000000)
+- `-f, --format` - Log format: apache, json, syslog
+- `-e, --error_rate` - Error rate 0.0-1.0 (default: 0.05)
 
-The MCP server should excel at:
-- **Complex queries** - Aggregations, grouping, multi-column filters
-- **Large files** - Streaming via Polars handles files larger than RAM
-- **Structured output** - JSON results ready for further processing
+## Requirements
 
-Traditional tools may be faster for:
-- **Simple grep** - Single pattern matching on small files
-- **One-liners** - Quick awk scripts for basic counting
+**Required:**
+- Rust toolchain (1.75+)
+- grep, awk
 
-## Sample Results
+**Optional (for full comparison):**
+- ripgrep (`rg`)
+- jq
 
-Run `./run_benchmark.sh --small` to see comparative benchmarks on your system.
+## Results Summary
+
+See [BENCHMARK.md](BENCHMARK.md) for detailed results.
+
+**MCP excels at:**
+- GROUP BY aggregations (5-50x faster than awk)
+- JSON log analysis (11x faster than jq)
+- Complex multi-column queries
+
+**grep excels at:**
+- Simple line counting (~24x faster than MCP)

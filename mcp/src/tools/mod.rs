@@ -325,11 +325,45 @@ impl LogForensicsServer {
         let format = LogFormat::from_str(&params.format);
         let path = std::path::Path::new(&params.path);
 
+        let op_lower = params.operation.to_lowercase();
+
+        // =================================================================
+        // GREP-LIKE FAST PATH: count with filter_text, no group_by
+        // This is pure regex matching - no parsing at all, maximum speed
+        // =================================================================
+        if op_lower == "count" && params.filter_text.is_some() && params.group_by.is_none() {
+            let pattern = params.filter_text.as_ref().unwrap();
+
+            let paths = match parsers::expand_glob(&params.path) {
+                Ok(p) => p,
+                Err(_) => vec![path.to_path_buf()],
+            };
+
+            let result = if paths.len() == 1 && paths[0].is_file() {
+                apache_simd::count_matches(&paths[0], pattern)
+            } else {
+                let path_refs: Vec<&std::path::Path> = paths.iter().map(|p| p.as_path()).collect();
+                apache_simd::count_matches_multi(&path_refs, pattern)
+            };
+
+            match result {
+                Ok(count) => {
+                    let summary = format!(
+                        "Count: {} lines matching '{}' (grep-like fast path)",
+                        count, pattern
+                    );
+                    return Ok(CallToolResult::success(vec![Content::text(summary)]));
+                }
+                Err(e) => {
+                    tracing::warn!("Grep-like fast path failed: {}", e);
+                    // Fall through to regular path
+                }
+            }
+        }
+
         // GENERALIZED FAST PATH: Apache/Nginx count grouped by ip/path/method/status
         let is_apache = matches!(format, LogFormat::Apache | LogFormat::Nginx)
             || (format == LogFormat::Auto && params.path.contains("access"));
-
-        let op_lower = params.operation.to_lowercase();
 
         if is_apache {
             // Check if we can use fast path for this group_by column
