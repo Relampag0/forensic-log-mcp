@@ -5,7 +5,7 @@
 - **Date**: 2025-12-17
 - **OS**: Linux 6.17.3-2-cachyos
 - **CPU**: AMD Ryzen 7 8840U (16 threads)
-- **RAM**: 14 GB
+- **RAM**: 16 GB
 - **CPU Governor**: powersave
 - **Methodology**: 10 runs per test, 3 warmup runs, mean reported
 
