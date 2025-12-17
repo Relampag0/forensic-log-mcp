@@ -32,6 +32,10 @@ struct FieldOffsets {
     status_start: usize,
     size_start: usize,
     size_end: usize,
+    referer_start: usize,   // After opening quote
+    referer_end: usize,     // Before closing quote
+    user_agent_start: usize,
+    user_agent_end: usize,
 }
 
 /// Find field boundaries using SIMD-accelerated byte search
@@ -82,6 +86,38 @@ fn find_fields(line: &[u8]) -> Option<FieldOffsets> {
         len
     };
 
+    // Referer is the next quoted field after size: "REFERER"
+    let (referer_start, referer_end) = if size_end < len {
+        if let Some(ref_quote1) = memchr(b'"', &line[size_end..]) {
+            let ref_start = size_end + ref_quote1 + 1;
+            if let Some(ref_quote2) = memchr(b'"', &line[ref_start..]) {
+                (ref_start, ref_start + ref_quote2)
+            } else {
+                (0, 0)
+            }
+        } else {
+            (0, 0)
+        }
+    } else {
+        (0, 0)
+    };
+
+    // User-Agent is the next quoted field after referer: "USER_AGENT"
+    let (user_agent_start, user_agent_end) = if referer_end > 0 && referer_end + 1 < len {
+        if let Some(ua_quote1) = memchr(b'"', &line[referer_end + 1..]) {
+            let ua_start = referer_end + 1 + ua_quote1 + 1;
+            if let Some(ua_quote2) = memchr(b'"', &line[ua_start..]) {
+                (ua_start, ua_start + ua_quote2)
+            } else {
+                (0, 0)
+            }
+        } else {
+            (0, 0)
+        }
+    } else {
+        (0, 0)
+    };
+
     Some(FieldOffsets {
         ip_end,
         timestamp_start,
@@ -91,6 +127,10 @@ fn find_fields(line: &[u8]) -> Option<FieldOffsets> {
         status_start,
         size_start,
         size_end,
+        referer_start,
+        referer_end,
+        user_agent_start,
+        user_agent_end,
     })
 }
 
@@ -144,6 +184,26 @@ fn extract_path<'a>(line: &'a [u8], offsets: &FieldOffsets) -> &'a [u8] {
 #[inline]
 fn extract_request<'a>(line: &'a [u8], offsets: &FieldOffsets) -> &'a [u8] {
     &line[offsets.request_start..offsets.request_end]
+}
+
+/// Extract referer field
+#[inline]
+fn extract_referer<'a>(line: &'a [u8], offsets: &FieldOffsets) -> &'a [u8] {
+    if offsets.referer_start > 0 && offsets.referer_end > offsets.referer_start && offsets.referer_end <= line.len() {
+        &line[offsets.referer_start..offsets.referer_end]
+    } else {
+        b"-"
+    }
+}
+
+/// Extract user-agent field
+#[inline]
+fn extract_user_agent<'a>(line: &'a [u8], offsets: &FieldOffsets) -> &'a [u8] {
+    if offsets.user_agent_start > 0 && offsets.user_agent_end > offsets.user_agent_start && offsets.user_agent_end <= line.len() {
+        &line[offsets.user_agent_start..offsets.user_agent_end]
+    } else {
+        b"-"
+    }
 }
 
 /// Extract size as i64 (handles "-" for missing size)
@@ -382,6 +442,8 @@ pub enum GroupByColumn {
     Path,
     Method,
     Status,
+    Referer,
+    UserAgent,
 }
 
 impl GroupByColumn {
@@ -391,6 +453,8 @@ impl GroupByColumn {
             "path" | "uri" | "url" | "request_path" => Some(GroupByColumn::Path),
             "method" | "request_method" | "http_method" => Some(GroupByColumn::Method),
             "status" | "status_code" | "http_status" => Some(GroupByColumn::Status),
+            "referer" | "referrer" | "http_referer" => Some(GroupByColumn::Referer),
+            "user_agent" | "useragent" | "ua" | "http_user_agent" => Some(GroupByColumn::UserAgent),
             _ => None,
         }
     }
@@ -613,6 +677,8 @@ pub fn group_by_count(
                                     b"???"
                                 }
                             }
+                            GroupByColumn::Referer => extract_referer(line, &offsets),
+                            GroupByColumn::UserAgent => extract_user_agent(line, &offsets),
                         };
 
                         *counts.entry(key.to_vec()).or_insert(0) += 1;
@@ -898,6 +964,8 @@ pub fn aggregate_size(
                                         b"???".to_vec()
                                     }
                                 }
+                                Some(GroupByColumn::Referer) => extract_referer(line, &offsets).to_vec(),
+                                Some(GroupByColumn::UserAgent) => extract_user_agent(line, &offsets).to_vec(),
                                 None => b"_total".to_vec(),
                             };
 

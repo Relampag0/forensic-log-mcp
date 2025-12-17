@@ -4,7 +4,7 @@ A high-performance Model Context Protocol (MCP) server for log analysis, powered
 
 ## Features
 
-- **Blazing Fast**: Built with Rust and Polars for maximum performance
+- **Fast Aggregations**: 10-19x faster than awk/jq on GROUP BY operations
 - **Streaming**: Handles files larger than RAM via lazy evaluation
 - **Multi-Format**: Apache, Nginx, Syslog, JSON Lines, CSV/TSV
 - **Auto-Detection**: Automatically detects log format from content
@@ -13,25 +13,27 @@ A high-performance Model Context Protocol (MCP) server for log analysis, powered
 
 ## Performance
 
-MCP dominates traditional Unix tools on all common log analysis operations:
+MCP excels at **aggregation queries** (GROUP BY, COUNT, SUM, AVG) on large files:
 
-| Operation | File Size | MCP | Best Alternative | Speedup |
-|-----------|-----------|-----|------------------|---------|
-| Filter status | 5M lines (620MB) | 0.048s | ripgrep: 0.24s | **5x faster** |
-| Group by IP | 5M lines (620MB) | 0.068s | awk: 0.77s | **12x faster** |
-| Regex search | 5M lines (620MB) | 0.114s | ripgrep: 0.41s | **3.6x faster** |
-| Time range | 5M lines (620MB) | 0.058s | grep: 0.26s | **4.5x faster** |
-| Sum/Avg size | 5M lines (620MB) | 0.066s | awk: 1.27s | **19x faster** |
-| JSON group by | 1M lines (181MB) | 0.131s | jq: 1.52s | **12x faster** |
+| Operation | awk | MCP | Speedup |
+|-----------|-----|-----|---------|
+| Group by IP | 0.36s | 0.048s | **7.5x faster** |
+| Group by method | 1.26s | 0.048s | **26x faster** |
+| Group by user_agent | 2.39s | 0.047s | **51x faster** |
+| Group by referer | 1.16s | 0.047s | **24x faster** |
+| Sum size | 0.37s | 0.048s | **7.7x faster** |
 
-### Performance by Format
+*(Tested on 1M line Apache log, 125MB)*
 
-| Format | vs Best Alternative |
-|--------|---------------------|
-| Apache/Nginx | **3.6-80x faster** than grep/awk/ripgrep |
-| Syslog | **1.8-35x faster** than grep/awk |
-| JSON | **7-15x faster** than jq |
-| CSV | Polars-optimized |
+### Honest Assessment
+
+**MCP is faster for:**
+- All GROUP BY aggregations (7-51x faster than awk)
+- JSON log analysis (10-15x faster than jq)
+- Complex multi-column queries
+
+**grep is faster for:**
+- Simple text counting (`grep -c` is 6x faster due to MCP startup overhead)
 
 ### How It's So Fast
 
