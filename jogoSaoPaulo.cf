@@ -1,0 +1,30 @@
+SExp. Stm ::= Exp ;
+
+EInt. Exp15 ::= Integer ;
+
+
+EId. Exp15 ::= Id ;
+EPlus. Exp1 ::= Exp1 "+" Exp2 ;
+EMinus. Exp12 ::= Exp12 "-" Exp13 ;
+EMulti. Exp11 ::= Exp11 "*" Exp12 ;
+EDiv. Exp11 ::= Exp11 "/" Exp12 ;
+ELt. Exp9 ::= Exp9 "<" Exp10 ;
+EGt. Exp9 ::= Exp9 ">" Exp10 ;
+ELtEq. Exp9 ::= Exp9 "<=" Exp10 ;
+EGtWq. Exp9 ::= Exp9 ">=" Exp10 ;
+EEq. Exp8 ::= Exp8 "==" Exp9 ;
+ENEq. Exp8 ::= Exp8 "!=" Exp9 ;
+EAnd. Exp4 ::= Exp4 "&&" Exp5 ;
+EOr. Exp3 ::= Exp3 "||" Exp4 ;
+EAss. Exp2 ::= Exp3 "=" Exp2 ;
+
+
+coercions Exp 15 ;
+separator Exp "," ;
+separator Id "," ;
+
+Tint. Type ::= "int" ;
+Tstr. Type ::= "string" ;
+
+
+token Id ((letter | digit | '_')+) ;
